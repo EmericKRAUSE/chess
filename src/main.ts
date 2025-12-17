@@ -1,55 +1,63 @@
 const canvas = document.getElementById("gameCanvas") as HTMLCanvasElement;
 const ctx = canvas.getContext("2d");
 
-const PIECE_SYMBOLS: Record<"white" | "black", Record<string, string>> = {
-    white: {
-        rook: "♖",
-        knight: "♘",
-        bishop: "♗",
-        queen: "♕",
-        king: "♔",
-        pawn: "♙",
+type PieceType = "pawn" | "rook" | "knight" | "bishop" | "queen" | "king";
+type PieceColor = "white" | "black"
+type ThemeName = "chesscom" | "neon";
+
+type ThemeConfig = {
+    lightSquareColor:       string;
+    darkSquareColor:        string;
+    selectedLightColor:     string;
+    selectedDarkColor:      string
+    piecesThemePath:        string;
+}
+
+const THEMES: Record<ThemeName, ThemeConfig> = {
+    chesscom: {
+        lightSquareColor:       "#ebecd0",
+        darkSquareColor:        "#739552",
+        selectedLightColor:     "#f5f580",
+        selectedDarkColor:      "#b9ca42",
+        piecesThemePath:        "assets/pieces/chesscom"
     },
-    black: {
-        rook: "♜",
-        knight: "♞",
-        bishop: "♝",
-        queen: "♛",
-        king: "♚",
-        pawn: "♟",
+    neon: {
+        lightSquareColor:       "#282828",
+        darkSquareColor:        "#1C1C1C",
+        selectedLightColor:     "#f5f580",
+        selectedDarkColor:      "#b9ca42",
+        piecesThemePath:        "assets/pieces/neon"
     }
 }
 
-type Theme = {
-    lightSquareColor:       string;
-    darkSquareColor:        string;
-    highlightedLightColor:  string;
-    highlightedDarkColor:   string
+function loadTheme(themeName: ThemeName) {
+    const   theme: ThemeConfig = THEMES[themeName];
+    const   pieces: PieceType[] = ["pawn", "rook", "knight", "bishop", "queen", "king"];
+    const   colors: ("white" | "black")[] = ["white", "black"];
+    const   images: Record<"white" | "black", Record<PieceType, HTMLImageElement>> = {
+        white: {} as Record<PieceType, HTMLImageElement>,
+        black: {} as Record<PieceType, HTMLImageElement>,
+    }
+    for (const color of colors) {
+        for (const piece of pieces) {
+            const img = Object.assign(new Image(), { src : `${theme.piecesThemePath}/${color}/${piece}.png`});
+            images[color][piece] = img;
+        }
+    }
+    return images;
 }
 
-const CHESSCOM_THEME: Theme = {
-    lightSquareColor:       "#ebecd0",
-    darkSquareColor:        "#739552",
-    highlightedLightColor:  "#f5f580",
-    highlightedDarkColor:   "#b9ca42",
-}
-
-const CAPPUCCINO_THEME: Theme = {
-    lightSquareColor:       "#FFF4E6",
-    darkSquareColor:        "#4B3832",
-    highlightedLightColor:  "#f5f580",
-    highlightedDarkColor:   "#BE9B7B",
-}
-
-const MY_THEME = CHESSCOM_THEME;
+const   CURRENT_THEME_NAME: ThemeName = "chesscom";
+const   CURRENT_THEME: ThemeConfig = THEMES[CURRENT_THEME_NAME];
+const   CURRENT_THEME_IMAGES = loadTheme(CURRENT_THEME_NAME);
 
 //####################
 // Classes
 abstract class Piece {
-    type: string;
-    color: "white" | "black";
+    type:   PieceType;
+    color:  PieceColor;
 
-    constructor(t: string, c: "white" | "black") {
+    constructor(t: PieceType, c: PieceColor) {
         this.type = t;
         this.color = c
     }
@@ -62,7 +70,13 @@ class Pawn extends Piece {
         const   moves: [number, number][] = [];
         const   direction = this.color == "white" ? -1 : 1;
         const   initalY = this.color == "white" ? 6 : 1;
-        const   forwardY = y + direction;;
+        const   forwardY = y + direction;
+
+        for (const dx of [-1, 1]) {
+            const cx = x + dx;
+            if (forwardY >= 0 && forwardY <= 7 && cx >= 0 && cx <= 7 && board[forwardY][cx].piece && board[forwardY][cx].piece.color != this.color)
+                moves.push([cx, forwardY]);
+        }
 
         if (forwardY >= 0 && forwardY <= 7 && !board[forwardY][x].piece) {
             moves.push([x, forwardY]);
@@ -76,7 +90,7 @@ class Pawn extends Piece {
 
 class Rook extends Piece {
     getLegalMoves(x: number, y: number, board: Square[][]): [number, number][] {
-        const moves: [number, number][] = [];
+        const   moves: [number, number][] = [];
         const   directions = [
             [ 0, -1],
             [ 1,  0],
@@ -228,25 +242,23 @@ class King extends Piece {
 }
 
 class Square {
-    piece:                 Piece | null;
-    color:              "white" | "black";
-    highlighted:        boolean;
+    piece:          Piece | null;
+    color:          "white" | "black";
+    highlighted:    "none" | "selected" | "move" | "capture";
 
     constructor(p: Piece | null, c: "white" | "black") {
         this.piece = p;
         this.color = c;
-        this.highlighted = false;
+        this.highlighted = "none";
     }
 }
 
 class Board {
-    squares:            Square[][] = [];
-    squareSize:         number;
-    theme:              Theme;
+    squares:    Square[][] = [];
+    squareSize: number;
 
-    constructor(s: number, t: Theme) {
+    constructor(s: number) {
         this.squareSize = s;
-        this.theme = t;
     }
 
     initSquares() {
@@ -266,12 +278,27 @@ class Board {
     drawSquares() {
         for(let y = 0; y < 8; y++) {
             for (let x = 0; x < 8; x++) {
+                const key = this.squares[y][x].highlighted;
+                const posX = x * this.squareSize;
+                const posY = y * this.squareSize;
+                
                 ctx?.save();
-                ctx!.fillStyle = this.squares[y][x].color == "white" ? this.theme.lightSquareColor : this.theme.darkSquareColor;
-                ctx?.fillRect(x * this.squareSize, y * this.squareSize, this.squareSize, this.squareSize);
-                if (this.squares[y][x].highlighted) {
-                    ctx!.fillStyle = this.squares[y][x].color == "white" ? this.theme.highlightedLightColor : this.theme.highlightedDarkColor;
-                    ctx?.fillRect(x * this.squareSize + 10, y * this.squareSize + 10, this.squareSize - 20, this.squareSize - 20);
+                ctx!.fillStyle = this.squares[y][x].color == "white" ? CURRENT_THEME.lightSquareColor : CURRENT_THEME.darkSquareColor;
+                ctx?.fillRect(posX, posY, this.squareSize, this.squareSize);
+
+                switch (key) {
+                    case "selected":
+                        ctx!.fillStyle = this.squares[y][x].color == "white" ? CURRENT_THEME.selectedLightColor : CURRENT_THEME.selectedDarkColor;
+                        ctx?.fillRect(posX, posY, this.squareSize, this.squareSize);
+                        break;
+                    case "move":
+                        ctx!.fillStyle = "rgba(0, 0, 0, 0.2)";
+                        ctx?.beginPath();
+                        ctx?.arc(posX + this.squareSize / 2, posY + this.squareSize / 2, this.squareSize * 0.2, 0, Math.PI * 2);
+                        ctx?.fill();
+                        break;
+                    default:
+                        break;
                 }
                 ctx?.restore();
             }
@@ -320,32 +347,100 @@ class Board {
 
     drawPieces() {
         ctx?.save();
-        ctx!.font = `${this.squareSize}px Arial`;
-        ctx!.textAlign = "center";
-        ctx!.textBaseline = "middle";
-
         for (let y = 0; y < 8; y++) {
             for (let x = 0; x < 8; x++) {
                 if (this.squares[y][x].piece) {
-                    const symbol = PIECE_SYMBOLS[this.squares[y][x].piece!.color][this.squares[y][x].piece!.type];
-                    const centerX = x * this.squareSize + this.squareSize / 2;
-                    const centerY = y * this.squareSize + this.squareSize / 2;
-                    ctx?.fillText(symbol, centerX, centerY);
+                    const   pieceColor: PieceColor = this.squares[y][x].piece!.color;
+                    const   pieceType: PieceType = this.squares[y][x].piece!.type;
+                    const   img = CURRENT_THEME_IMAGES[pieceColor][pieceType];
+                    const   posX = x * this.squareSize;
+                    const   posY = y * this.squareSize;
+                    ctx?.drawImage(img, posX, posY, this.squareSize, this.squareSize);
                 }
             }
         }
         ctx?.restore();
     }
+
+    isPlayerInCheck(player: Player): boolean {
+        let kingPos: [number, number] | null = null;
+        for (let y = 0; y < 8; y++) {
+            for (let x = 0; x < 8; x++) {
+                if (this.squares[y][x].piece?.type == "king" && this.squares[y][x].piece?.color == player.color) {
+                    kingPos = [x, y];
+                    break ;
+                }
+            }
+        }
+
+        if (!kingPos)
+            return (false);
+
+        for (let y = 0; y < 8; y++) {
+            for (let x = 0; x < 8; x++) {
+                if (this.squares[y][x].piece && this.squares[y][x].piece?.color != player.color) {
+                    const moves = this.squares[y][x].piece?.getLegalMoves(x, y, this.squares);
+                    if (!moves)
+                        return (false);
+                    const canAttackKing = moves.some(([mx, my]) => mx == kingPos[0] && my == kingPos[1]);
+                    if (canAttackKing) {
+                        console.log("king under attack!");
+                        return (true);
+                    }
+                }
+            }
+        }
+        return (true);
+    }
+}
+
+class Player {
+    color: "white" | "black";
+    isInCheck: boolean;
+
+    constructor(c: "white" | "black") {
+        this.color = c;
+        this.isInCheck = false;
+    }
+}
+
+class Game {
+    players: [Player, Player];
+    currentPlayer: 0 | 1;
+
+    constructor(p1: Player, p2: Player) {
+        this.players = [p1, p2];
+        this.currentPlayer = 0;
+    }
+
+    nextTurn() {
+        this.currentPlayer = this.currentPlayer === 0 ? 1 : 0;
+    }
 }
 //####################
 
-const board = new Board(canvas.width / 8, MY_THEME);
+const board = new Board(canvas.width / 8);
+const player1 = new Player("white");
+const player2 = new Player("black");
+const game = new Game(player1, player2);
 
 //####################
 // Events
 let selectedPiece: Piece | null;
 let x: number;
 let y: number;
+
+function enableHighlighting(moves: [number, number][]) {
+    for (const [dx, dy] of moves) {
+        board.squares[dy][dx].highlighted = "move";
+    }
+}
+
+function disableHighlighting(moves: [number, number][]) {
+    for (const [dx, dy] of moves) {
+        board.squares[dy][dx].highlighted = "none";
+    }
+}
 
 canvas.addEventListener("mousedown", (event) => {
     x = Math.floor(event.offsetX / board.squareSize);
@@ -354,7 +449,20 @@ canvas.addEventListener("mousedown", (event) => {
     selectedPiece = board.squares[y][x].piece;
     if (!selectedPiece)
         return ;
-    board.squares[y][x].highlighted = true;
+
+    board.squares[y][x].highlighted = "selected";
+
+    if (game.players[game.currentPlayer].color == selectedPiece.color) {
+        const moves = selectedPiece.getLegalMoves(x, y, board.squares);
+        enableHighlighting(moves);
+    }
+})
+
+canvas.addEventListener("mousemove", (event) => {
+    if (!selectedPiece)
+        return ;
+
+    board.squares[y][x].piece
 })
 
 canvas.addEventListener("mouseup", (event) => {
@@ -363,13 +471,23 @@ canvas.addEventListener("mouseup", (event) => {
 
     if (!selectedPiece)
         return ;
+    
     const moves = selectedPiece.getLegalMoves(x, y, board.squares);
+    board.squares[y][x].highlighted = "none";
+    disableHighlighting(moves);
+
+    if (game.players[game.currentPlayer].color != selectedPiece.color) {
+        selectedPiece = null;
+        return ;
+    }
+
     const isLegalMove = moves.some(([mx, my]) => mx == mouseX && my == mouseY);
     if (isLegalMove) {
         board.squares[mouseY][mouseX].piece = board.squares[y][x].piece;
         board.squares[y][x].piece = null;
+        game.nextTurn();
     }
-    board.squares[y][x].highlighted = false;
+    board.isPlayerInCheck(player2);
     selectedPiece = null;
 })
 //####################

@@ -15,37 +15,43 @@ var __extends = (this && this.__extends) || (function () {
 })();
 var canvas = document.getElementById("gameCanvas");
 var ctx = canvas.getContext("2d");
-var PIECE_SYMBOLS = {
-    white: {
-        rook: "♖",
-        knight: "♘",
-        bishop: "♗",
-        queen: "♕",
-        king: "♔",
-        pawn: "♙"
+var THEMES = {
+    chesscom: {
+        lightSquareColor: "#ebecd0",
+        darkSquareColor: "#739552",
+        selectedLightColor: "#f5f580",
+        selectedDarkColor: "#b9ca42",
+        piecesThemePath: "assets/pieces/chesscom"
     },
-    black: {
-        rook: "♜",
-        knight: "♞",
-        bishop: "♝",
-        queen: "♛",
-        king: "♚",
-        pawn: "♟"
+    neon: {
+        lightSquareColor: "#282828",
+        darkSquareColor: "#1C1C1C",
+        selectedLightColor: "#f5f580",
+        selectedDarkColor: "#b9ca42",
+        piecesThemePath: "assets/pieces/neon"
     }
 };
-var CHESSCOM_THEME = {
-    lightSquareColor: "#ebecd0",
-    darkSquareColor: "#739552",
-    highlightedLightColor: "#f5f580",
-    highlightedDarkColor: "#b9ca42"
-};
-var CAPPUCCINO_THEME = {
-    lightSquareColor: "#FFF4E6",
-    darkSquareColor: "#4B3832",
-    highlightedLightColor: "#f5f580",
-    highlightedDarkColor: "#BE9B7B"
-};
-var MY_THEME = CHESSCOM_THEME;
+function loadTheme(themeName) {
+    var theme = THEMES[themeName];
+    var pieces = ["pawn", "rook", "knight", "bishop", "queen", "king"];
+    var colors = ["white", "black"];
+    var images = {
+        white: {},
+        black: {}
+    };
+    for (var _i = 0, colors_1 = colors; _i < colors_1.length; _i++) {
+        var color = colors_1[_i];
+        for (var _a = 0, pieces_1 = pieces; _a < pieces_1.length; _a++) {
+            var piece = pieces_1[_a];
+            var img = Object.assign(new Image(), { src: "".concat(theme.piecesThemePath, "/").concat(color, "/").concat(piece, ".png") });
+            images[color][piece] = img;
+        }
+    }
+    return images;
+}
+var CURRENT_THEME_NAME = "chesscom";
+var CURRENT_THEME = THEMES[CURRENT_THEME_NAME];
+var CURRENT_THEME_IMAGES = loadTheme(CURRENT_THEME_NAME);
 //####################
 // Classes
 var Piece = /** @class */ (function () {
@@ -65,7 +71,12 @@ var Pawn = /** @class */ (function (_super) {
         var direction = this.color == "white" ? -1 : 1;
         var initalY = this.color == "white" ? 6 : 1;
         var forwardY = y + direction;
-        ;
+        for (var _i = 0, _a = [-1, 1]; _i < _a.length; _i++) {
+            var dx = _a[_i];
+            var cx = x + dx;
+            if (forwardY >= 0 && forwardY <= 7 && cx >= 0 && cx <= 7 && board[forwardY][cx].piece && board[forwardY][cx].piece.color != this.color)
+                moves.push([cx, forwardY]);
+        }
         if (forwardY >= 0 && forwardY <= 7 && !board[forwardY][x].piece) {
             moves.push([x, forwardY]);
             var doubleForwardY = y + direction * 2;
@@ -248,15 +259,14 @@ var Square = /** @class */ (function () {
     function Square(p, c) {
         this.piece = p;
         this.color = c;
-        this.highlighted = false;
+        this.highlighted = "none";
     }
     return Square;
 }());
 var Board = /** @class */ (function () {
-    function Board(s, t) {
+    function Board(s) {
         this.squares = [];
         this.squareSize = s;
-        this.theme = t;
     }
     Board.prototype.initSquares = function () {
         for (var y_1 = 0; y_1 < 8; y_1++) {
@@ -274,12 +284,25 @@ var Board = /** @class */ (function () {
     Board.prototype.drawSquares = function () {
         for (var y_2 = 0; y_2 < 8; y_2++) {
             for (var x_2 = 0; x_2 < 8; x_2++) {
+                var key = this.squares[y_2][x_2].highlighted;
+                var posX = x_2 * this.squareSize;
+                var posY = y_2 * this.squareSize;
                 ctx === null || ctx === void 0 ? void 0 : ctx.save();
-                ctx.fillStyle = this.squares[y_2][x_2].color == "white" ? this.theme.lightSquareColor : this.theme.darkSquareColor;
-                ctx === null || ctx === void 0 ? void 0 : ctx.fillRect(x_2 * this.squareSize, y_2 * this.squareSize, this.squareSize, this.squareSize);
-                if (this.squares[y_2][x_2].highlighted) {
-                    ctx.fillStyle = this.squares[y_2][x_2].color == "white" ? this.theme.highlightedLightColor : this.theme.highlightedDarkColor;
-                    ctx === null || ctx === void 0 ? void 0 : ctx.fillRect(x_2 * this.squareSize + 10, y_2 * this.squareSize + 10, this.squareSize - 20, this.squareSize - 20);
+                ctx.fillStyle = this.squares[y_2][x_2].color == "white" ? CURRENT_THEME.lightSquareColor : CURRENT_THEME.darkSquareColor;
+                ctx === null || ctx === void 0 ? void 0 : ctx.fillRect(posX, posY, this.squareSize, this.squareSize);
+                switch (key) {
+                    case "selected":
+                        ctx.fillStyle = this.squares[y_2][x_2].color == "white" ? CURRENT_THEME.selectedLightColor : CURRENT_THEME.selectedDarkColor;
+                        ctx === null || ctx === void 0 ? void 0 : ctx.fillRect(posX, posY, this.squareSize, this.squareSize);
+                        break;
+                    case "move":
+                        ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
+                        ctx === null || ctx === void 0 ? void 0 : ctx.beginPath();
+                        ctx === null || ctx === void 0 ? void 0 : ctx.arc(posX + this.squareSize / 2, posY + this.squareSize / 2, this.squareSize * 0.2, 0, Math.PI * 2);
+                        ctx === null || ctx === void 0 ? void 0 : ctx.fill();
+                        break;
+                    default:
+                        break;
                 }
                 ctx === null || ctx === void 0 ? void 0 : ctx.restore();
             }
@@ -324,37 +347,109 @@ var Board = /** @class */ (function () {
     };
     Board.prototype.drawPieces = function () {
         ctx === null || ctx === void 0 ? void 0 : ctx.save();
-        ctx.font = "".concat(this.squareSize, "px Arial");
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
         for (var y_3 = 0; y_3 < 8; y_3++) {
             for (var x_4 = 0; x_4 < 8; x_4++) {
                 if (this.squares[y_3][x_4].piece) {
-                    var symbol = PIECE_SYMBOLS[this.squares[y_3][x_4].piece.color][this.squares[y_3][x_4].piece.type];
-                    var centerX = x_4 * this.squareSize + this.squareSize / 2;
-                    var centerY = y_3 * this.squareSize + this.squareSize / 2;
-                    ctx === null || ctx === void 0 ? void 0 : ctx.fillText(symbol, centerX, centerY);
+                    var pieceColor = this.squares[y_3][x_4].piece.color;
+                    var pieceType = this.squares[y_3][x_4].piece.type;
+                    var img = CURRENT_THEME_IMAGES[pieceColor][pieceType];
+                    var posX = x_4 * this.squareSize;
+                    var posY = y_3 * this.squareSize;
+                    ctx === null || ctx === void 0 ? void 0 : ctx.drawImage(img, posX, posY, this.squareSize, this.squareSize);
                 }
             }
         }
         ctx === null || ctx === void 0 ? void 0 : ctx.restore();
     };
+    Board.prototype.isPlayerInCheck = function (player) {
+        var _a, _b, _c, _d;
+        var kingPos = null;
+        for (var y_4 = 0; y_4 < 8; y_4++) {
+            for (var x_5 = 0; x_5 < 8; x_5++) {
+                if (((_a = this.squares[y_4][x_5].piece) === null || _a === void 0 ? void 0 : _a.type) == "king" && ((_b = this.squares[y_4][x_5].piece) === null || _b === void 0 ? void 0 : _b.color) == player.color) {
+                    kingPos = [x_5, y_4];
+                    break;
+                }
+            }
+        }
+        if (!kingPos)
+            return (false);
+        for (var y_5 = 0; y_5 < 8; y_5++) {
+            for (var x_6 = 0; x_6 < 8; x_6++) {
+                if (this.squares[y_5][x_6].piece && ((_c = this.squares[y_5][x_6].piece) === null || _c === void 0 ? void 0 : _c.color) != player.color) {
+                    var moves = (_d = this.squares[y_5][x_6].piece) === null || _d === void 0 ? void 0 : _d.getLegalMoves(x_6, y_5, this.squares);
+                    if (!moves)
+                        return (false);
+                    var canAttackKing = moves.some(function (_a) {
+                        var mx = _a[0], my = _a[1];
+                        return mx == kingPos[0] && my == kingPos[1];
+                    });
+                    if (canAttackKing) {
+                        console.log("king under attack!");
+                        return (true);
+                    }
+                }
+            }
+        }
+        return (true);
+    };
     return Board;
 }());
+var Player = /** @class */ (function () {
+    function Player(c) {
+        this.color = c;
+        this.isInCheck = false;
+    }
+    return Player;
+}());
+var Game = /** @class */ (function () {
+    function Game(p1, p2) {
+        this.players = [p1, p2];
+        this.currentPlayer = 0;
+    }
+    Game.prototype.nextTurn = function () {
+        this.currentPlayer = this.currentPlayer === 0 ? 1 : 0;
+    };
+    return Game;
+}());
 //####################
-var board = new Board(canvas.width / 8, MY_THEME);
+var board = new Board(canvas.width / 8);
+var player1 = new Player("white");
+var player2 = new Player("black");
+var game = new Game(player1, player2);
 //####################
 // Events
 var selectedPiece;
 var x;
 var y;
+function enableHighlighting(moves) {
+    for (var _i = 0, moves_1 = moves; _i < moves_1.length; _i++) {
+        var _a = moves_1[_i], dx = _a[0], dy = _a[1];
+        board.squares[dy][dx].highlighted = "move";
+    }
+}
+function disableHighlighting(moves) {
+    for (var _i = 0, moves_2 = moves; _i < moves_2.length; _i++) {
+        var _a = moves_2[_i], dx = _a[0], dy = _a[1];
+        board.squares[dy][dx].highlighted = "none";
+    }
+}
 canvas.addEventListener("mousedown", function (event) {
     x = Math.floor(event.offsetX / board.squareSize);
     y = Math.floor(event.offsetY / board.squareSize);
     selectedPiece = board.squares[y][x].piece;
     if (!selectedPiece)
         return;
-    board.squares[y][x].highlighted = true;
+    board.squares[y][x].highlighted = "selected";
+    if (game.players[game.currentPlayer].color == selectedPiece.color) {
+        var moves = selectedPiece.getLegalMoves(x, y, board.squares);
+        enableHighlighting(moves);
+    }
+});
+canvas.addEventListener("mousemove", function (event) {
+    if (!selectedPiece)
+        return;
+    board.squares[y][x].piece;
 });
 canvas.addEventListener("mouseup", function (event) {
     var mouseX = Math.floor(event.offsetX / board.squareSize);
@@ -362,6 +457,12 @@ canvas.addEventListener("mouseup", function (event) {
     if (!selectedPiece)
         return;
     var moves = selectedPiece.getLegalMoves(x, y, board.squares);
+    board.squares[y][x].highlighted = "none";
+    disableHighlighting(moves);
+    if (game.players[game.currentPlayer].color != selectedPiece.color) {
+        selectedPiece = null;
+        return;
+    }
     var isLegalMove = moves.some(function (_a) {
         var mx = _a[0], my = _a[1];
         return mx == mouseX && my == mouseY;
@@ -369,8 +470,9 @@ canvas.addEventListener("mouseup", function (event) {
     if (isLegalMove) {
         board.squares[mouseY][mouseX].piece = board.squares[y][x].piece;
         board.squares[y][x].piece = null;
+        game.nextTurn();
     }
-    board.squares[y][x].highlighted = false;
+    board.isPlayerInCheck(player2);
     selectedPiece = null;
 });
 //####################
