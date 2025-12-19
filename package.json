@@ -19,6 +19,7 @@
   "homepage": "https://github.com/EmericKRAUSE/survivor#readme",
   "devDependencies": {
     "@types/node": "^12.20.55",
+    "lite-server": "^2.6.1",
     "ts-node": "^10.9.2",
     "typescript": "4.9"
   }
