@@ -66,7 +66,7 @@ var Pawn = /** @class */ (function (_super) {
     function Pawn() {
         return _super !== null && _super.apply(this, arguments) || this;
     }
-    Pawn.prototype.getLegalMoves = function (x, y, board) {
+    Pawn.prototype.getPseudoLegalMoves = function (x, y, board) {
         var moves = [];
         var direction = this.color == "white" ? -1 : 1;
         var initalY = this.color == "white" ? 6 : 1;
@@ -74,16 +74,29 @@ var Pawn = /** @class */ (function (_super) {
         for (var _i = 0, _a = [-1, 1]; _i < _a.length; _i++) {
             var dx = _a[_i];
             var cx = x + dx;
-            if (forwardY >= 0 && forwardY <= 7 && cx >= 0 && cx <= 7 && board[forwardY][cx].piece && board[forwardY][cx].piece.color != this.color)
+            if (forwardY >= 0 && forwardY <= 7 && cx >= 0 && cx <= 7 && board.squares[forwardY][cx].piece && board.squares[forwardY][cx].piece.color != this.color)
                 moves.push([cx, forwardY]);
         }
-        if (forwardY >= 0 && forwardY <= 7 && !board[forwardY][x].piece) {
+        if (forwardY >= 0 && forwardY <= 7 && !board.squares[forwardY][x].piece) {
             moves.push([x, forwardY]);
             var doubleForwardY = y + direction * 2;
-            if (y == initalY && doubleForwardY >= 0 && doubleForwardY <= 7 && !board[doubleForwardY][x].piece)
+            if (y == initalY && doubleForwardY >= 0 && doubleForwardY <= 7 && !board.squares[doubleForwardY][x].piece)
                 moves.push([x, doubleForwardY]);
         }
         return (moves);
+    };
+    Pawn.prototype.getLegalMoves = function (x, y, board, player) {
+        var moves = this.getPseudoLegalMoves(x, y, board);
+        var legalMoves = [];
+        for (var _i = 0, moves_1 = moves; _i < moves_1.length; _i++) {
+            var _a = moves_1[_i], mx = _a[0], my = _a[1];
+            if (board.isLegalMove(player, x, y, mx, my))
+                legalMoves.push([mx, my]);
+        }
+        return (legalMoves);
+    };
+    Pawn.prototype.clone = function () {
+        return (new Pawn(this.type, this.color));
     };
     return Pawn;
 }(Piece));
@@ -92,7 +105,7 @@ var Rook = /** @class */ (function (_super) {
     function Rook() {
         return _super !== null && _super.apply(this, arguments) || this;
     }
-    Rook.prototype.getLegalMoves = function (x, y, board) {
+    Rook.prototype.getPseudoLegalMoves = function (x, y, board) {
         var moves = [];
         var directions = [
             [0, -1],
@@ -105,7 +118,7 @@ var Rook = /** @class */ (function (_super) {
             var cx = x + dx;
             var cy = y + dy;
             while (cx >= 0 && cx <= 7 && cy >= 0 && cy <= 7) {
-                var sq = board[cy][cx];
+                var sq = board.squares[cy][cx];
                 if (!sq.piece)
                     moves.push([cx, cy]);
                 else if (sq.piece.color != this.color) {
@@ -120,6 +133,19 @@ var Rook = /** @class */ (function (_super) {
         }
         return (moves);
     };
+    Rook.prototype.getLegalMoves = function (x, y, board, player) {
+        var moves = this.getPseudoLegalMoves(x, y, board);
+        var legalMoves = [];
+        for (var _i = 0, moves_2 = moves; _i < moves_2.length; _i++) {
+            var _a = moves_2[_i], mx = _a[0], my = _a[1];
+            if (board.isLegalMove(player, x, y, mx, my))
+                legalMoves.push([mx, my]);
+        }
+        return (legalMoves);
+    };
+    Rook.prototype.clone = function () {
+        return (new Rook(this.type, this.color));
+    };
     return Rook;
 }(Piece));
 var Knight = /** @class */ (function (_super) {
@@ -127,7 +153,7 @@ var Knight = /** @class */ (function (_super) {
     function Knight() {
         return _super !== null && _super.apply(this, arguments) || this;
     }
-    Knight.prototype.getLegalMoves = function (x, y, board) {
+    Knight.prototype.getPseudoLegalMoves = function (x, y, board) {
         var moves = [];
         var directions = [
             [-1, -2],
@@ -144,7 +170,7 @@ var Knight = /** @class */ (function (_super) {
             var cx = x + dx;
             var cy = y + dy;
             if (cx >= 0 && cx <= 7 && cy >= 0 && cy <= 7) {
-                var sq = board[cy][cx];
+                var sq = board.squares[cy][cx];
                 if (!sq.piece)
                     moves.push([cx, cy]);
                 else if (sq.piece.color != this.color)
@@ -153,6 +179,19 @@ var Knight = /** @class */ (function (_super) {
         }
         return (moves);
     };
+    Knight.prototype.getLegalMoves = function (x, y, board, player) {
+        var moves = this.getPseudoLegalMoves(x, y, board);
+        var legalMoves = [];
+        for (var _i = 0, moves_3 = moves; _i < moves_3.length; _i++) {
+            var _a = moves_3[_i], mx = _a[0], my = _a[1];
+            if (board.isLegalMove(player, x, y, mx, my))
+                legalMoves.push([mx, my]);
+        }
+        return (legalMoves);
+    };
+    Knight.prototype.clone = function () {
+        return (new Knight(this.type, this.color));
+    };
     return Knight;
 }(Piece));
 var Bishop = /** @class */ (function (_super) {
@@ -160,7 +199,7 @@ var Bishop = /** @class */ (function (_super) {
     function Bishop() {
         return _super !== null && _super.apply(this, arguments) || this;
     }
-    Bishop.prototype.getLegalMoves = function (x, y, board) {
+    Bishop.prototype.getPseudoLegalMoves = function (x, y, board) {
         var moves = [];
         var directions = [
             [-1, 1],
@@ -173,7 +212,7 @@ var Bishop = /** @class */ (function (_super) {
             var cx = x + dx;
             var cy = y + dy;
             while (cx >= 0 && cx <= 7 && cy >= 0 && cy <= 7) {
-                var sq = board[cy][cx];
+                var sq = board.squares[cy][cx];
                 if (!sq.piece)
                     moves.push([cx, cy]);
                 else if (sq.piece.color != this.color) {
@@ -188,6 +227,19 @@ var Bishop = /** @class */ (function (_super) {
         }
         return (moves);
     };
+    Bishop.prototype.getLegalMoves = function (x, y, board, player) {
+        var moves = this.getPseudoLegalMoves(x, y, board);
+        var legalMoves = [];
+        for (var _i = 0, moves_4 = moves; _i < moves_4.length; _i++) {
+            var _a = moves_4[_i], mx = _a[0], my = _a[1];
+            if (board.isLegalMove(player, x, y, mx, my))
+                legalMoves.push([mx, my]);
+        }
+        return (legalMoves);
+    };
+    Bishop.prototype.clone = function () {
+        return (new Bishop(this.type, this.color));
+    };
     return Bishop;
 }(Piece));
 var Queen = /** @class */ (function (_super) {
@@ -195,7 +247,7 @@ var Queen = /** @class */ (function (_super) {
     function Queen() {
         return _super !== null && _super.apply(this, arguments) || this;
     }
-    Queen.prototype.getLegalMoves = function (x, y, board) {
+    Queen.prototype.getPseudoLegalMoves = function (x, y, board) {
         var moves = [];
         var directions = [
             [-1, 1],
@@ -212,7 +264,7 @@ var Queen = /** @class */ (function (_super) {
             var cx = x + dx;
             var cy = y + dy;
             while (cx >= 0 && cx <= 7 && cy >= 0 && cy <= 7) {
-                var sq = board[cy][cx];
+                var sq = board.squares[cy][cx];
                 if (!sq.piece)
                     moves.push([cx, cy]);
                 else if (sq.piece.color != this.color) {
@@ -227,6 +279,19 @@ var Queen = /** @class */ (function (_super) {
         }
         return (moves);
     };
+    Queen.prototype.getLegalMoves = function (x, y, board, player) {
+        var moves = this.getPseudoLegalMoves(x, y, board);
+        var legalMoves = [];
+        for (var _i = 0, moves_5 = moves; _i < moves_5.length; _i++) {
+            var _a = moves_5[_i], mx = _a[0], my = _a[1];
+            if (board.isLegalMove(player, x, y, mx, my))
+                legalMoves.push([mx, my]);
+        }
+        return (legalMoves);
+    };
+    Queen.prototype.clone = function () {
+        return (new Queen(this.type, this.color));
+    };
     return Queen;
 }(Piece));
 var King = /** @class */ (function (_super) {
@@ -234,7 +299,7 @@ var King = /** @class */ (function (_super) {
     function King() {
         return _super !== null && _super.apply(this, arguments) || this;
     }
-    King.prototype.getLegalMoves = function (x, y, board) {
+    King.prototype.getPseudoLegalMoves = function (x, y, board) {
         var moves = [];
         for (var dy = -1; dy <= 1; dy++) {
             for (var dx = -1; dx <= 1; dx++) {
@@ -243,7 +308,7 @@ var King = /** @class */ (function (_super) {
                 if (cx == x && cy == y)
                     continue;
                 if (cx >= 0 && cx <= 7 && cy >= 0 && cy <= 7) {
-                    var sq = board[cy][cx];
+                    var sq = board.squares[cy][cx];
                     if (!sq.piece)
                         moves.push([cx, cy]);
                     else if (sq.piece.color != this.color)
@@ -253,6 +318,19 @@ var King = /** @class */ (function (_super) {
         }
         return (moves);
     };
+    King.prototype.getLegalMoves = function (x, y, board, player) {
+        var moves = this.getPseudoLegalMoves(x, y, board);
+        var legalMoves = [];
+        for (var _i = 0, moves_6 = moves; _i < moves_6.length; _i++) {
+            var _a = moves_6[_i], mx = _a[0], my = _a[1];
+            if (board.isLegalMove(player, x, y, mx, my))
+                legalMoves.push([mx, my]);
+        }
+        return (legalMoves);
+    };
+    King.prototype.clone = function () {
+        return (new King(this.type, this.color));
+    };
     return King;
 }(Piece));
 var Square = /** @class */ (function () {
@@ -261,6 +339,11 @@ var Square = /** @class */ (function () {
         this.color = c;
         this.highlighted = "none";
     }
+    Square.prototype.clone = function () {
+        var clone = new Square(this.piece ? this.piece.clone() : null, this.color);
+        clone.highlighted = this.highlighted;
+        return (clone);
+    };
     return Square;
 }());
 var Board = /** @class */ (function () {
@@ -296,7 +379,7 @@ var Board = /** @class */ (function () {
                         ctx === null || ctx === void 0 ? void 0 : ctx.fillRect(posX, posY, this.squareSize, this.squareSize);
                         break;
                     case "move":
-                        ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
+                        ctx.fillStyle = "rgba(0, 0, 0, 0.15)";
                         ctx === null || ctx === void 0 ? void 0 : ctx.beginPath();
                         ctx === null || ctx === void 0 ? void 0 : ctx.arc(posX + this.squareSize / 2, posY + this.squareSize / 2, this.squareSize * 0.2, 0, Math.PI * 2);
                         ctx === null || ctx === void 0 ? void 0 : ctx.fill();
@@ -377,21 +460,49 @@ var Board = /** @class */ (function () {
         for (var y_5 = 0; y_5 < 8; y_5++) {
             for (var x_6 = 0; x_6 < 8; x_6++) {
                 if (this.squares[y_5][x_6].piece && ((_c = this.squares[y_5][x_6].piece) === null || _c === void 0 ? void 0 : _c.color) != player.color) {
-                    var moves = (_d = this.squares[y_5][x_6].piece) === null || _d === void 0 ? void 0 : _d.getLegalMoves(x_6, y_5, this.squares);
+                    var moves = (_d = this.squares[y_5][x_6].piece) === null || _d === void 0 ? void 0 : _d.getPseudoLegalMoves(x_6, y_5, this);
                     if (!moves)
                         return (false);
                     var canAttackKing = moves.some(function (_a) {
                         var mx = _a[0], my = _a[1];
                         return mx == kingPos[0] && my == kingPos[1];
                     });
-                    if (canAttackKing) {
-                        console.log("king under attack!");
+                    if (canAttackKing)
                         return (true);
-                    }
                 }
             }
         }
-        return (true);
+        return (false);
+    };
+    Board.prototype.clone = function () {
+        var clone = new Board(this.squareSize);
+        for (var y_6 = 0; y_6 < 8; y_6++) {
+            clone.squares[y_6] = [];
+            for (var x_7 = 0; x_7 < 8; x_7++) {
+                clone.squares[y_6][x_7] = this.squares[y_6][x_7].clone();
+            }
+        }
+        return (clone);
+    };
+    Board.prototype.isLegalMove = function (player, fromX, fromY, toX, toY) {
+        var testBoard = this.clone();
+        testBoard.squares[toY][toX].piece = testBoard.squares[fromY][fromX].piece;
+        testBoard.squares[fromY][fromX].piece = null;
+        return (!testBoard.isPlayerInCheck(player));
+    };
+    Board.prototype.hasAnyLegalMoves = function (player) {
+        var _a;
+        for (var y_7 = 0; y_7 < 8; y_7++) {
+            for (var x_8 = 0; x_8 < 8; x_8++) {
+                var piece = this.squares[y_7][x_8].piece;
+                if (piece && piece.color == player.color) {
+                    var moves = (_a = this.squares[y_7][x_8].piece) === null || _a === void 0 ? void 0 : _a.getLegalMoves(x_8, y_7, this, player);
+                    if ((moves === null || moves === void 0 ? void 0 : moves.length) && moves.length > 0)
+                        return (true);
+                }
+            }
+        }
+        return (false);
     };
     return Board;
 }());
@@ -403,12 +514,20 @@ var Player = /** @class */ (function () {
     return Player;
 }());
 var Game = /** @class */ (function () {
-    function Game(p1, p2) {
+    function Game(p1, p2, b) {
         this.players = [p1, p2];
+        this.board = b;
         this.currentPlayer = 0;
+        this.gameStatus = "playing";
     }
     Game.prototype.nextTurn = function () {
         this.currentPlayer = this.currentPlayer === 0 ? 1 : 0;
+    };
+    Game.prototype.updateGameStatus = function () {
+        var currentPlayer = this.players[this.currentPlayer];
+        if (!this.board.hasAnyLegalMoves(currentPlayer)) {
+            this.gameStatus = "checkmate";
+        }
     };
     return Game;
 }());
@@ -416,21 +535,21 @@ var Game = /** @class */ (function () {
 var board = new Board(canvas.width / 8);
 var player1 = new Player("white");
 var player2 = new Player("black");
-var game = new Game(player1, player2);
+var game = new Game(player1, player2, board);
 //####################
 // Events
 var selectedPiece;
 var x;
 var y;
 function enableHighlighting(moves) {
-    for (var _i = 0, moves_1 = moves; _i < moves_1.length; _i++) {
-        var _a = moves_1[_i], dx = _a[0], dy = _a[1];
+    for (var _i = 0, moves_7 = moves; _i < moves_7.length; _i++) {
+        var _a = moves_7[_i], dx = _a[0], dy = _a[1];
         board.squares[dy][dx].highlighted = "move";
     }
 }
 function disableHighlighting(moves) {
-    for (var _i = 0, moves_2 = moves; _i < moves_2.length; _i++) {
-        var _a = moves_2[_i], dx = _a[0], dy = _a[1];
+    for (var _i = 0, moves_8 = moves; _i < moves_8.length; _i++) {
+        var _a = moves_8[_i], dx = _a[0], dy = _a[1];
         board.squares[dy][dx].highlighted = "none";
     }
 }
@@ -442,21 +561,21 @@ canvas.addEventListener("mousedown", function (event) {
         return;
     board.squares[y][x].highlighted = "selected";
     if (game.players[game.currentPlayer].color == selectedPiece.color) {
-        var moves = selectedPiece.getLegalMoves(x, y, board.squares);
+        var moves = selectedPiece.getLegalMoves(x, y, board, game.players[game.currentPlayer]);
         enableHighlighting(moves);
     }
 });
-canvas.addEventListener("mousemove", function (event) {
-    if (!selectedPiece)
-        return;
-    board.squares[y][x].piece;
-});
+// canvas.addEventListener("mousemove", (event) => {
+//     if (!selectedPiece)
+//         return ;
+//     board.squares[y][x].piece
+// })
 canvas.addEventListener("mouseup", function (event) {
     var mouseX = Math.floor(event.offsetX / board.squareSize);
     var mouseY = Math.floor(event.offsetY / board.squareSize);
     if (!selectedPiece)
         return;
-    var moves = selectedPiece.getLegalMoves(x, y, board.squares);
+    var moves = selectedPiece.getLegalMoves(x, y, board, game.players[game.currentPlayer]);
     board.squares[y][x].highlighted = "none";
     disableHighlighting(moves);
     if (game.players[game.currentPlayer].color != selectedPiece.color) {
@@ -471,8 +590,8 @@ canvas.addEventListener("mouseup", function (event) {
         board.squares[mouseY][mouseX].piece = board.squares[y][x].piece;
         board.squares[y][x].piece = null;
         game.nextTurn();
+        game.updateGameStatus();
     }
-    board.isPlayerInCheck(player2);
     selectedPiece = null;
 });
 //####################
@@ -482,8 +601,11 @@ function initGame() {
 }
 function gameLoop() {
     ctx === null || ctx === void 0 ? void 0 : ctx.clearRect(0, 0, canvas.width, canvas.height);
-    board.drawSquares();
-    board.drawPieces();
+    game.board.drawSquares();
+    game.board.drawPieces();
+    if (game.gameStatus != "playing") {
+        console.log(game.gameStatus);
+    }
     requestAnimationFrame(gameLoop);
 }
 initGame();

@@ -2,8 +2,9 @@ const canvas = document.getElementById("gameCanvas") as HTMLCanvasElement;
 const ctx = canvas.getContext("2d");
 
 type PieceType = "pawn" | "rook" | "knight" | "bishop" | "queen" | "king";
-type PieceColor = "white" | "black"
+type PieceColor = "white" | "black";
 type ThemeName = "chesscom" | "neon";
+type GameStatus = "playing" | "checkmate" | "draw" | "stalemate"; 
 
 type ThemeConfig = {
     lightSquareColor:       string;
@@ -62,11 +63,14 @@ abstract class Piece {
         this.color = c
     }
 
-    abstract getLegalMoves(x: number, y: number, board: Square[][]): [number, number][];
+    abstract getPseudoLegalMoves(x: number, y: number, board: Board): [number, number][];
+    abstract getLegalMoves(x: number, y: number, board: Board, player: Player): [number, number][];
+
+    abstract clone() : Piece;
 }
 
 class Pawn extends Piece {
-    getLegalMoves(x:number, y:number, board: Square[][]): [number, number][] {
+    getPseudoLegalMoves(x:number, y:number, board: Board): [number, number][] {
         const   moves: [number, number][] = [];
         const   direction = this.color == "white" ? -1 : 1;
         const   initalY = this.color == "white" ? 6 : 1;
@@ -74,22 +78,37 @@ class Pawn extends Piece {
 
         for (const dx of [-1, 1]) {
             const cx = x + dx;
-            if (forwardY >= 0 && forwardY <= 7 && cx >= 0 && cx <= 7 && board[forwardY][cx].piece && board[forwardY][cx].piece.color != this.color)
+            if (forwardY >= 0 && forwardY <= 7 && cx >= 0 && cx <= 7 && board.squares[forwardY][cx].piece && board.squares[forwardY][cx].piece.color != this.color)
                 moves.push([cx, forwardY]);
         }
 
-        if (forwardY >= 0 && forwardY <= 7 && !board[forwardY][x].piece) {
+        if (forwardY >= 0 && forwardY <= 7 && !board.squares[forwardY][x].piece) {
             moves.push([x, forwardY]);
             const doubleForwardY = y + direction * 2;
-            if (y == initalY && doubleForwardY >= 0 && doubleForwardY <= 7 && !board[doubleForwardY][x].piece)
+            if (y == initalY && doubleForwardY >= 0 && doubleForwardY <= 7 && !board.squares[doubleForwardY][x].piece)
                 moves.push([x, doubleForwardY]);
         }
         return (moves);
     }
+
+    getLegalMoves(x: number, y: number, board: Board, player: Player): [number, number][] {
+        const moves = this.getPseudoLegalMoves(x, y, board);
+        const legalMoves: [number, number][] = [];
+        
+        for (const [mx, my] of moves) {
+            if (board.isLegalMove(player, x, y, mx, my))
+                legalMoves.push([mx, my]);
+        }
+        return (legalMoves);
+    }
+
+    clone (): Piece {
+        return (new Pawn(this.type, this.color));
+    }
 }
 
 class Rook extends Piece {
-    getLegalMoves(x: number, y: number, board: Square[][]): [number, number][] {
+    getPseudoLegalMoves(x: number, y: number, board: Board): [number, number][] {
         const   moves: [number, number][] = [];
         const   directions = [
             [ 0, -1],
@@ -103,7 +122,7 @@ class Rook extends Piece {
             let cy = y + dy;
 
             while (cx >= 0 && cx <= 7 && cy >= 0 && cy <= 7) {
-                const sq = board[cy][cx];
+                const sq = board.squares[cy][cx];
                 if (!sq.piece)
                     moves.push([cx, cy]);
                 else if (sq.piece.color != this.color) {
@@ -118,10 +137,24 @@ class Rook extends Piece {
         }
         return (moves);
     }
+
+    getLegalMoves(x: number, y: number, board: Board, player: Player): [number, number][] {
+        const moves = this.getPseudoLegalMoves(x, y, board);
+        const legalMoves: [number, number][] = [];
+        for (const [mx, my] of moves) {
+            if (board.isLegalMove(player, x, y, mx, my))
+                legalMoves.push([mx, my]);
+        }
+        return (legalMoves);
+    }
+
+    clone (): Piece {
+        return (new Rook(this.type, this.color));
+    }
 }
 
 class Knight extends Piece {
-    getLegalMoves(x:number, y:number, board: Square[][]): [number, number][] {
+    getPseudoLegalMoves(x:number, y:number, board: Board): [number, number][] {
         const   moves: [number, number][] = [];
         const   directions = [
             [-1, -2],
@@ -139,7 +172,7 @@ class Knight extends Piece {
             let cy = y + dy;
 
             if (cx >= 0 && cx <= 7 && cy >= 0 && cy <= 7) {
-                const sq = board[cy][cx];
+                const sq = board.squares[cy][cx];
                 if (!sq.piece)
                     moves.push([cx, cy]);
                 else if (sq.piece.color != this.color)
@@ -148,10 +181,24 @@ class Knight extends Piece {
         }
         return (moves);
     }
+
+    getLegalMoves(x: number, y: number, board: Board, player: Player): [number, number][] {
+        const moves = this.getPseudoLegalMoves(x, y, board);
+        const legalMoves: [number, number][] = [];
+        for (const [mx, my] of moves) {
+            if (board.isLegalMove(player, x, y, mx, my))
+                legalMoves.push([mx, my]);
+        }
+        return (legalMoves);
+    }
+
+    clone (): Piece {
+        return (new Knight(this.type, this.color));
+    }
 }
 
 class Bishop extends Piece {
-    getLegalMoves(x:number, y:number, board: Square[][]): [number, number][] {
+    getPseudoLegalMoves(x:number, y:number, board: Board): [number, number][] {
         const   moves: [number, number][] = [];
         const   directions = [
             [-1,  1],
@@ -165,7 +212,7 @@ class Bishop extends Piece {
             let cy = y + dy;
 
             while (cx >= 0 && cx <= 7 && cy >= 0 && cy <= 7) {
-                const sq = board[cy][cx];
+                const sq = board.squares[cy][cx];
                 if (!sq.piece)
                     moves.push([cx, cy]);
                 else if (sq.piece.color != this.color) {
@@ -180,10 +227,24 @@ class Bishop extends Piece {
         }
         return (moves);
     }
+
+    getLegalMoves(x: number, y: number, board: Board, player: Player): [number, number][] {
+        const moves = this.getPseudoLegalMoves(x, y, board);
+        const legalMoves: [number, number][] = [];
+        for (const [mx, my] of moves) {
+            if (board.isLegalMove(player, x, y, mx, my))
+                legalMoves.push([mx, my]);
+        }
+        return (legalMoves);
+    }
+
+    clone (): Piece {
+        return (new Bishop(this.type, this.color));
+    }
 }
 
 class Queen extends Piece {
-    getLegalMoves(x:number, y:number, board: Square[][]): [number, number][] {
+    getPseudoLegalMoves(x:number, y:number, board: Board): [number, number][] {
         const   moves: [number, number][] = [];
         const   directions = [
             [-1,  1],
@@ -201,7 +262,7 @@ class Queen extends Piece {
             let cy = y + dy;
 
             while (cx >= 0 && cx <= 7 && cy >= 0 && cy <= 7) {
-                const sq = board[cy][cx];
+                const sq = board.squares[cy][cx];
                 if (!sq.piece)
                     moves.push([cx, cy]);
                 else if (sq.piece.color != this.color) {
@@ -216,10 +277,24 @@ class Queen extends Piece {
         }
         return (moves);
     }
+
+    getLegalMoves(x: number, y: number, board: Board, player: Player): [number, number][] {
+        const moves = this.getPseudoLegalMoves(x, y, board);
+        const legalMoves: [number, number][] = [];
+        for (const [mx, my] of moves) {
+            if (board.isLegalMove(player, x, y, mx, my))
+                legalMoves.push([mx, my]);
+        }
+        return (legalMoves);
+    }
+
+    clone (): Piece {
+        return (new Queen(this.type, this.color));
+    }
 }
 
 class King extends Piece {
-    getLegalMoves(x:number, y:number, board: Square[][]): [number, number][] {
+    getPseudoLegalMoves(x:number, y:number, board: Board): [number, number][] {
         const   moves: [number, number][] = [];
 
         for (let dy = -1; dy <= 1; dy++) {
@@ -229,7 +304,7 @@ class King extends Piece {
                 if (cx == x && cy == y)
                     continue ;
                 if (cx >= 0 && cx <= 7 && cy >= 0 && cy <= 7) {
-                    const sq = board[cy][cx];
+                    const sq = board.squares[cy][cx];
                     if (!sq.piece)
                         moves.push([cx, cy]);
                     else if (sq.piece.color != this.color)
@@ -238,6 +313,20 @@ class King extends Piece {
             }
         }
         return (moves);
+    }
+
+    getLegalMoves(x: number, y: number, board: Board, player: Player): [number, number][] {
+        const moves = this.getPseudoLegalMoves(x, y, board);
+        const legalMoves: [number, number][] = [];
+        for (const [mx, my] of moves) {
+            if (board.isLegalMove(player, x, y, mx, my))
+                legalMoves.push([mx, my]);
+        }
+        return (legalMoves);
+    }
+
+    clone (): Piece {
+        return (new King(this.type, this.color));
     }
 }
 
@@ -250,6 +339,12 @@ class Square {
         this.piece = p;
         this.color = c;
         this.highlighted = "none";
+    }
+
+    clone(): Square {
+        const clone = new Square(this.piece ? this.piece.clone() : null, this.color);
+        clone.highlighted = this.highlighted;
+        return (clone);
     }
 }
 
@@ -292,7 +387,7 @@ class Board {
                         ctx?.fillRect(posX, posY, this.squareSize, this.squareSize);
                         break;
                     case "move":
-                        ctx!.fillStyle = "rgba(0, 0, 0, 0.2)";
+                        ctx!.fillStyle = "rgba(0, 0, 0, 0.15)";
                         ctx?.beginPath();
                         ctx?.arc(posX + this.squareSize / 2, posY + this.squareSize / 2, this.squareSize * 0.2, 0, Math.PI * 2);
                         ctx?.fill();
@@ -372,31 +467,61 @@ class Board {
                 }
             }
         }
-
         if (!kingPos)
             return (false);
-
         for (let y = 0; y < 8; y++) {
             for (let x = 0; x < 8; x++) {
                 if (this.squares[y][x].piece && this.squares[y][x].piece?.color != player.color) {
-                    const moves = this.squares[y][x].piece?.getLegalMoves(x, y, this.squares);
+                    const moves = this.squares[y][x].piece?.getPseudoLegalMoves(x, y, this);
                     if (!moves)
                         return (false);
                     const canAttackKing = moves.some(([mx, my]) => mx == kingPos[0] && my == kingPos[1]);
-                    if (canAttackKing) {
-                        console.log("king under attack!");
+                    if (canAttackKing)
                         return (true);
-                    }
                 }
             }
         }
-        return (true);
+        return (false);
+    }
+
+    clone(): Board {
+        const clone = new Board(this.squareSize);
+
+        for (let y = 0; y < 8; y++) {
+            clone.squares[y] = [];
+            for (let x = 0; x < 8; x++) {
+                clone.squares[y][x] = this.squares[y][x].clone();
+            }
+        }
+        return (clone);
+    }
+
+    isLegalMove(player: Player, fromX: number, fromY: number, toX: number, toY: number): boolean {
+        let testBoard = this.clone();
+
+        testBoard.squares[toY][toX].piece = testBoard.squares[fromY][fromX].piece;
+        testBoard.squares[fromY][fromX].piece = null;
+        return (!testBoard.isPlayerInCheck(player));
+    }
+
+    hasAnyLegalMoves(player: Player): boolean {
+        for (let y = 0; y < 8; y++) {
+            for (let x = 0; x < 8; x++) {
+                const piece = this.squares[y][x].piece;
+                if (piece && piece.color == player.color) {
+                    const moves = this.squares[y][x].piece?.getLegalMoves(x, y, this, player);
+                    if (moves?.length && moves.length > 0)
+                        return (true);
+                }
+            }
+        }
+        return (false);
     }
 }
 
 class Player {
-    color: "white" | "black";
-    isInCheck: boolean;
+    color:      "white" | "black";
+    isInCheck:  boolean;
 
     constructor(c: "white" | "black") {
         this.color = c;
@@ -405,16 +530,27 @@ class Player {
 }
 
 class Game {
-    players: [Player, Player];
-    currentPlayer: 0 | 1;
+    players:        [Player, Player];
+    board:          Board;
+    currentPlayer:  0 | 1;
+    gameStatus:     GameStatus;
 
-    constructor(p1: Player, p2: Player) {
+    constructor(p1: Player, p2: Player, b: Board) {
         this.players = [p1, p2];
+        this.board = b;
         this.currentPlayer = 0;
+        this.gameStatus = "playing";
     }
 
     nextTurn() {
         this.currentPlayer = this.currentPlayer === 0 ? 1 : 0;
+    }
+
+    updateGameStatus() {
+        const currentPlayer = this.players[this.currentPlayer];
+        if (!this.board.hasAnyLegalMoves(currentPlayer)) {
+            this.gameStatus = "checkmate";
+        }
     }
 }
 //####################
@@ -422,7 +558,7 @@ class Game {
 const board = new Board(canvas.width / 8);
 const player1 = new Player("white");
 const player2 = new Player("black");
-const game = new Game(player1, player2);
+const game = new Game(player1, player2, board);
 
 //####################
 // Events
@@ -453,17 +589,17 @@ canvas.addEventListener("mousedown", (event) => {
     board.squares[y][x].highlighted = "selected";
 
     if (game.players[game.currentPlayer].color == selectedPiece.color) {
-        const moves = selectedPiece.getLegalMoves(x, y, board.squares);
+        const moves = selectedPiece.getLegalMoves(x, y, board, game.players[game.currentPlayer]);
         enableHighlighting(moves);
     }
 })
 
-canvas.addEventListener("mousemove", (event) => {
-    if (!selectedPiece)
-        return ;
+// canvas.addEventListener("mousemove", (event) => {
+//     if (!selectedPiece)
+//         return ;
 
-    board.squares[y][x].piece
-})
+//     board.squares[y][x].piece
+// })
 
 canvas.addEventListener("mouseup", (event) => {
     const mouseX = Math.floor(event.offsetX / board.squareSize);
@@ -472,7 +608,7 @@ canvas.addEventListener("mouseup", (event) => {
     if (!selectedPiece)
         return ;
     
-    const moves = selectedPiece.getLegalMoves(x, y, board.squares);
+    const moves = selectedPiece.getLegalMoves(x, y, board, game.players[game.currentPlayer]);
     board.squares[y][x].highlighted = "none";
     disableHighlighting(moves);
 
@@ -486,8 +622,8 @@ canvas.addEventListener("mouseup", (event) => {
         board.squares[mouseY][mouseX].piece = board.squares[y][x].piece;
         board.squares[y][x].piece = null;
         game.nextTurn();
+        game.updateGameStatus();
     }
-    board.isPlayerInCheck(player2);
     selectedPiece = null;
 })
 //####################
@@ -500,8 +636,12 @@ function initGame() {
 function gameLoop() {
     ctx?.clearRect(0, 0, canvas.width, canvas.height);
 
-    board.drawSquares();
-    board.drawPieces();
+    game.board.drawSquares();
+    game.board.drawPieces();
+
+    if (game.gameStatus != "playing") {
+        console.log(game.gameStatus);
+    }
     requestAnimationFrame(gameLoop);
 }
 
